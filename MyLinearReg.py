@@ -2,10 +2,12 @@ import numpy as np
 import pandas as pd
 
 class MyLineReg:
-    def __init__(self, n_iter=100, learning_rate = 0.1, weights = None):
+    def __init__(self, n_iter=100, learning_rate = 0.1, weights = None, metric = None, reg = None):
         self.n_iter = n_iter
         self.learning_rate = learning_rate
         self.weights = weights
+        self.metric = metric
+        self.best_score = None
     
     def __str__(self):
 	    return f'MyLineReg class: n_iter={self.n_iter}, learning_rate={self.learning_rate}'
@@ -15,6 +17,24 @@ class MyLineReg:
         
         self.weights = np.ones(num_features)
 
+    def calc_metric(self, y_true, y_pred):
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+        if (self.metric == 'mae'):
+            return np.mean(abs(y_pred - y_true))
+        elif self.metric == 'mse':
+            return np.mean((y_pred - y_true) ** 2)
+        elif self.metric == 'rmse':
+            return np.sqrt(np.mean((y_pred - y_true) ** 2))
+        elif self.metric == 'mape':
+            epsilon = 1e-15
+            return np.mean(np.abs((y_true - y_pred) / (y_true + epsilon))) * 100
+        elif self.metric == 'r2':
+            ss_res = np.sum((y_true - y_pred) ** 2)
+            ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+            return 1 - (ss_res / (ss_tot + 1e-15))
+        else:
+            raise ValueError(f"Unknown metric: {self.metric}")
 
     def fit(self, x, y, verbose):
         X_with_bias = x.copy()
@@ -23,9 +43,8 @@ class MyLineReg:
         X_matrix = X_with_bias.values
         y_vector = y.values
         n_features = X_matrix.shape[1]
-        print(X_matrix.T)
         self.weights = np.ones(n_features)
-
+        prev_val = 0
         for iteration in range(1, self.n_iter+1, 1):
             predictions = np.dot(X_matrix, self.weights)
             errors = predictions - y_vector
@@ -33,8 +52,18 @@ class MyLineReg:
             self.weights -= self.learning_rate * gradient
             mse = np.mean(errors ** 2)
 
+            metric_value = None
+            if self.metric is not None:
+                metric_value = self.calc_metric(y_vector, predictions)
+
             if verbose and iteration % verbose == 0:
-                print(f'{iteration} | loss: {mse} ')
+                if self.metric is not None:
+                    print(f'{iteration} | loss: {mse:.2f} | {self.metric}: {metric_value:.2f}')
+                else:
+                    print(f'{iteration} | loss: {mse:.2f}')
+        if self.metric is not None:
+            final_predictions = np.dot(X_matrix, self.weights)
+            self.best_score = self.calc_metric(y_vector, final_predictions)
 
 
     def get_coef(self):
@@ -49,16 +78,18 @@ class MyLineReg:
         result = np.dot(matrix, self.weights)
         total_sum = np.sum(result)
         return total_sum
+    
+    def get_best_score(self):
+        return self.best_score
 
 
-
-lineReg = MyLineReg(50, 0.1)
+lineReg = MyLineReg(50, 0.1, None, 'mae')
 X = pd.DataFrame({'X': [0,1,2,3,4,5,6,7,8,9]})
 
 y = pd.Series(X['X'] * 2)
-lineReg.fit(X, y, False)
+lineReg.fit(X, y, True)
 
 df_pd = pd.DataFrame({'X': [0,1,2,3,4,5,6,7,8,9]})
-print(df_pd)
+
 # print(lineReg.get_coef())
 lineReg.predict(df_pd)
