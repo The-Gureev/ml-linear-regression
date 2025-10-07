@@ -2,12 +2,15 @@ import numpy as np
 import pandas as pd
 
 class MyLineReg:
-    def __init__(self, n_iter=100, learning_rate = 0.1, weights = None, metric = None, reg = None):
+    def __init__(self, n_iter=100, learning_rate = 0.1, weights = None, metric = None, reg = None, l1_coef = 0, l2_coef = 0):
         self.n_iter = n_iter
         self.learning_rate = learning_rate
         self.weights = weights
         self.metric = metric
         self.best_score = None
+        self.reg = reg
+        self.l1_coef = l1_coef
+        self.l2_coef = l2_coef
     
     def __str__(self):
 	    return f'MyLineReg class: n_iter={self.n_iter}, learning_rate={self.learning_rate}'
@@ -36,6 +39,42 @@ class MyLineReg:
         else:
             raise ValueError(f"Unknown metric: {self.metric}")
 
+    def _calculate_regularization_loss(self):
+        """Calculate regularization term for the loss function"""
+        if self.reg is None:
+            return 0
+        
+        weights_without_bias = self.weights[1:]
+        
+        if self.reg == 'l1':
+            return self.l1_coef * np.sum(np.abs(weights_without_bias))
+        elif self.reg == 'l2':
+            return self.l2_coef * np.sum(weights_without_bias ** 2)
+        elif self.reg == 'elasticnet':
+            l1_term = self.l1_coef * np.sum(np.abs(weights_without_bias))
+            l2_term = self.l2_coef * np.sum(weights_without_bias ** 2)
+            return l1_term + l2_term
+        return 0
+
+    def _calculate_regularization_gradient(self):
+        """Calculate regularization term for the gradient"""
+        if self.reg is None:
+            return np.zeros_like(self.weights)
+        
+        reg_gradient = np.zeros_like(self.weights)
+        weights_without_bias = self.weights[1:]
+        
+        if self.reg == 'l1':
+            reg_gradient = self.l1_coef * np.sign(weights_without_bias)
+        elif self.reg == 'l2':
+            reg_gradient = 2 * self.l2_coef * weights_without_bias
+        elif self.reg == 'elasticnet':
+            l1_grad = self.l1_coef * np.sign(weights_without_bias)
+            l2_grad = 2 * self.l2_coef * weights_without_bias
+            reg_gradient[1:] = l1_grad + l2_grad
+        
+        return reg_gradient
+
     def fit(self, x, y, verbose):
         X_with_bias = x.copy()
         X_with_bias.insert(0, 'bias', 1)
@@ -49,8 +88,16 @@ class MyLineReg:
             predictions = np.dot(X_matrix, self.weights)
             errors = predictions - y_vector
             gradient = (2 / len(y_vector)) * (X_matrix.T @ errors)
-            self.weights -= self.learning_rate * gradient
+
+            reg_gradient = self._calculate_regularization_gradient()
+
+            total_gradient = gradient + reg_gradient
+
+            self.weights -= self.learning_rate * total_gradient
             mse = np.mean(errors ** 2)
+
+            reg_loss = self._calculate_regularization_loss()
+            total_loss = mse + reg_loss
 
             metric_value = None
             if self.metric is not None:
@@ -58,9 +105,9 @@ class MyLineReg:
 
             if verbose and iteration % verbose == 0:
                 if self.metric is not None:
-                    print(f'{iteration} | loss: {mse:.2f} | {self.metric}: {metric_value:.2f}')
+                    print(f'{iteration} | loss: {total_loss:.2f} | {self.metric}: {metric_value:.2f}')
                 else:
-                    print(f'{iteration} | loss: {mse:.2f}')
+                    print(f'{iteration} | loss: {total_loss:.2f}')
         if self.metric is not None:
             final_predictions = np.dot(X_matrix, self.weights)
             self.best_score = self.calc_metric(y_vector, final_predictions)
