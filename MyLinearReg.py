@@ -92,8 +92,13 @@ class MyLineReg:
             reg_gradient = self._calculate_regularization_gradient()
 
             total_gradient = gradient + reg_gradient
+            
+            if (isinstance(self.learning_rate, float)):
+                rate = self.learning_rate
+            else:
+                rate = self.learning_rate(iteration)
 
-            self.weights -= self.learning_rate * total_gradient
+            self.weights -= rate * total_gradient
             mse = np.mean(errors ** 2)
 
             reg_loss = self._calculate_regularization_loss()
@@ -130,7 +135,7 @@ class MyLineReg:
         return self.best_score
 
 
-lineReg = MyLineReg(50, 0.1, None, 'mae')
+lineReg = MyLineReg(50, lambda iter: 0.5 * (0.85 ** iter), None, 'mae')
 X = pd.DataFrame({'X': [0,1,2,3,4,5,6,7,8,9]})
 
 y = pd.Series(X['X'] * 2)
