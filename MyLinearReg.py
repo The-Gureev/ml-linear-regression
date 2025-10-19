@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
+import random
 
 class MyLineReg:
-    def __init__(self, n_iter=100, learning_rate = 0.1, weights = None, metric = None, reg = None, l1_coef = 0, l2_coef = 0):
+    def __init__(self, n_iter=100, learning_rate = 0.1, weights = None, metric = None, reg = None, l1_coef = 0, l2_coef = 0, sgd_sample = None, random_state = 42):
         self.n_iter = n_iter
         self.learning_rate = learning_rate
         self.weights = weights
@@ -11,6 +12,10 @@ class MyLineReg:
         self.reg = reg
         self.l1_coef = l1_coef
         self.l2_coef = l2_coef
+        self.sgd_sample = sgd_sample
+        self.random_state = random_state
+
+        random.seed(random_state) 
     
     def __str__(self):
 	    return f'MyLineReg class: n_iter={self.n_iter}, learning_rate={self.learning_rate}'
@@ -76,15 +81,27 @@ class MyLineReg:
         return reg_gradient
 
     def fit(self, x, y, verbose):
+        sample_number = self.sgd_sample
+        
         X_with_bias = x.copy()
         X_with_bias.insert(0, 'bias', 1)
         
-        X_matrix = X_with_bias.values
-        y_vector = y.values
-        n_features = X_matrix.shape[1]
+        n_features = X_with_bias.shape[1]
         self.weights = np.ones(n_features)
         prev_val = 0
         for iteration in range(1, self.n_iter+1, 1):
+            if (sample_number == None):
+                X_matrix = X_with_bias.values
+                y_vector = y.values
+            else:
+                if (sample_number < 1):
+                    sample_number = int(x.shape[0] * sample_number)
+                sample_rows_idx = random.sample(range(x.shape[0]), sample_number)
+            
+                X_matrix = X_with_bias.iloc[sample_rows_idx].values
+                y_vector = y.iloc[sample_rows_idx].values
+
+
             predictions = np.dot(X_matrix, self.weights)
             errors = predictions - y_vector
             gradient = (2 / len(y_vector)) * (X_matrix.T @ errors)
@@ -135,11 +152,11 @@ class MyLineReg:
         return self.best_score
 
 
-lineReg = MyLineReg(50, lambda iter: 0.5 * (0.85 ** iter), None, 'mae')
+lineReg = MyLineReg(50, lambda iter: 0.5 * (0.85 ** iter), None, 'mae', 0, 0, 0, 0.5 )
 X = pd.DataFrame({'X': [0,1,2,3,4,5,6,7,8,9]})
 
 y = pd.Series(X['X'] * 2)
-lineReg.fit(X, y, True)
+lineReg.fit(X, y, False)
 
 df_pd = pd.DataFrame({'X': [0,1,2,3,4,5,6,7,8,9]})
 
