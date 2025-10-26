@@ -3,25 +3,35 @@ import pandas as pd
 import math
 
 class MyLogReg:
-    def __init__(self, n_iter = 10, learning_rate = 0.1, weights = None):
+    def __init__(self, n_iter = 10, learning_rate = 0.1, weights = None, metric = None):
         self.n_iter = n_iter
         self.learning_rate = learning_rate
         self.weights = weights
+        self.metric = metric
         
     def __str__(self):
 	    return f'MyLogReg class: n_iter={self.n_iter}, learning_rate={self.learning_rate}'
     
     def sigmoid(self, z):
         return 1 / (1 + np.exp(-z))
+    
+    def calc_metric(self, y_true, y_predict):
+        if (self.metric == 'accuracy'):
+            correct_predict = np.sum(y_true = y_predict)
+            total = len(y_predict)
+            return correct_predict / total
+        
+    def create_matrix(self, data):
+        data_with_bias = data.copy()
+        data_with_bias.insert(0, 'bias', 1)
+        return data_with_bias.values
 
     def fit(self, X, y, verbose):
-        X_with_bias = X.copy() #.insert(1, 'bias', 1)
-        X_with_bias.insert(0, 'bias', 1)
+        X_matrix = self.create_matrix(X)
         y_vector = y.values
 
-        X_matrix = X_with_bias.values
         n_samples = X_matrix.shape[0]
-        n_features = X_with_bias.shape[1]
+        n_features = X_matrix.shape[1]
 
         self.weights = np.ones(n_features)
        
@@ -46,6 +56,18 @@ class MyLogReg:
         if self.weights is None:
             raise ValueError("Model is not fitted yet. Call fit() first.")
         return self.weights[1:]
+
+    def predict_proba(self, X):
+        X_matrix = self.create_matrix(X)
+
+        return self.sigmoid(X_matrix @ self.weights)
+
+    def predict(self, X):
+        return self.predict_proba(X) > 0.5
+
+
+
+
 
 
 X = pd.DataFrame({'X': [0,1,2,3,4,5,6,7,8,9,10]})
