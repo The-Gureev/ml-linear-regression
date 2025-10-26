@@ -17,7 +17,7 @@ class MyLogReg:
     
     def calc_metric(self, y_true, y_predict):
         if (self.metric == 'accuracy'):
-            correct_predict = np.sum(y_true = y_predict)
+            correct_predict = np.sum(y_true == y_predict)
             total = len(y_predict)
             return correct_predict / total
         
@@ -29,6 +29,8 @@ class MyLogReg:
     def fit(self, X, y, verbose):
         X_matrix = self.create_matrix(X)
         y_vector = y.values
+        self.X = X
+        self.y_vector = y_vector
 
         n_samples = X_matrix.shape[0]
         n_features = X_matrix.shape[1]
@@ -41,7 +43,10 @@ class MyLogReg:
         log_loss = -1*np.mean( y_vector * np.log(predict + eps) + (1-y_vector)*np.log(1-predict + eps) )
 
         if verbose:
-            print(f'start | loss: {log_loss:.2f}')
+            if self.metric is not None:
+                print(f'start | loss: {log_loss:.2f} | {self.metric}:{self.calc_metric(y_vector, self.predict())}')
+            else:
+                print(f'start | loss: {log_loss:.2f}')
 
         for rate in range(self.n_iter):
             predict = self.sigmoid(X_matrix @ self.weights)
@@ -50,7 +55,10 @@ class MyLogReg:
             gradient = (X_matrix.T @ (predict - y_vector)) / n_samples
             self.weights -= self.learning_rate * gradient
             if verbose and rate % verbose == 0:
-                print(f'{rate} | loss: {log_loss:.2f}')
+                if self.metric is not None:
+                    print(f'start | loss: {log_loss:.2f} | {self.metric}:{self.calc_metric(y_vector, self.predict())}')
+                else:
+                    print(f'start | loss: {log_loss:.2f}')
     
     def get_coef(self):
         if self.weights is None:
@@ -64,6 +72,9 @@ class MyLogReg:
 
     def predict(self, X):
         return self.predict_proba(X) > 0.5
+
+    def get_best_score(self):
+        return self.calc_metric(self.y_vector, self.predict(self.X))
 
 
 
